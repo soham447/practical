@@ -1,44 +1,55 @@
 //////  JK FF //////////////////
 
-`timescale 1ns / 1ps
+module jk_ff (
+    input j, k, clk, rst,
+    output reg q
+);
+
+always @(posedge clk or posedge rst)
+begin
+    if (rst)
+        q <= 1'b0;
+    else
+        case ({j,k})
+            2'b00: q <= q;
+            2'b01: q <= 1'b0;
+            2'b10: q <= 1'b1;
+            2'b11: q <= ~q;
+        endcase
+end
+
+endmodule
+
+
+// 3-bit Asynchronous Counter
 
 module async_counter_3bit (
     input clk,
     input rst,
-    output reg [2:0] q
+    output [2:0] q
 );
 
-// First flip-flop (LSB)
-always @(posedge clk or posedge rst) begin
-    if (rst)
-        q[0] <= 0;
-    else
-        q[0] <= ~q[0];
-end
+wire j, k;
+
+assign j = 1'b1;
+assign k = 1'b1;
+
+// First flip-flop
+jk_ff FF0(j, k, clk, rst, q[0]);
 
 // Second flip-flop
-always @(posedge q[0] or posedge rst) begin
-    if (rst)
-        q[1] <= 0;
-    else
-        q[1] <= ~q[1];
-end
+jk_ff FF1(j, k, q[0], rst, q[1]);
 
-// Third flip-flop (MSB)
-always @(posedge q[1] or posedge rst) begin
-    if (rst)
-        q[2] <= 0;
-    else
-        q[2] <= ~q[2];
-end
+// Third flip-flop
+jk_ff FF2(j, k, q[1], rst, q[2]);
 
 endmodule
 
 //////// TB //////////////
 
-`timescale 1ns / 1ps
+`timescale 1ns/1ps
 
-module async_counter_3bit_tb;
+module tb_async_counter;
 
 reg clk, rst;
 wire [2:0] q;
@@ -50,30 +61,22 @@ async_counter_3bit uut (
 );
 
 // Clock generation
-always #10 clk = ~clk;
+always #5 clk = ~clk;
 
-// Test stimulus
 initial begin
+
     clk = 0;
     rst = 1;
 
-    #20;
-    rst = 0;
-
-    #500;
-
-    rst = 1;
-    #20;
-    rst = 0;
+    #10 rst = 0;
 
     #200;
+
     $finish;
 end
 
-// Monitor
 initial begin
-    $monitor("Time=%0t | Reset=%b | CLK=%b | Q=%b",
-              $time, rst, clk, q);
+    $monitor("Time=%0t | Count=%b", $time, q);
 end
 
 endmodule
